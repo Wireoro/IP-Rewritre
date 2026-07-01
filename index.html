@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WordCraft Rewriter</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:       #f9f8f5;
+  --surface:  #ffffff;
+  --border:   #e3dfd6;
+  --ink:      #1e1e1e;
+  --ink-mid:  #555;
+  --ink-soft: #888;
+  --ink-faint:#bbb;
+  --blue:     #3b6ea5;
+  --blue-dim: #2f5a8a;
+  --green:    #3a8a4e;
+  --red:      #b03030;
+  --serif:    Georgia, "Times New Roman", serif;
+  --sans:     -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sw:       290px;
+}
+
+html, body { height: 100%; font-family: var(--sans); background: var(--bg); color: var(--ink); }
+button { font-family: var(--sans); cursor: pointer; border: none; background: none; transition: all .15s; }
+input, textarea { font-family: var(--sans); }
+::selection { background: var(--blue); color: #fff; }
+
+/* blue top bar */
+body::before { content:''; position:fixed; top:0; left:0; right:0; height:3px; background:var(--blue); z-index:200; }
+
+/* ══════════════════════════════════════════════
+   CONNECT SCREEN
+══════════════════════════════════════════════ */
+#connect-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+.connect-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 40px 44px 36px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.06);
+}
+.connect-logo {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 400;
+  margin-bottom: 3px;
+}
+.connect-sub {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--ink-faint);
+  margin-bottom: 32px;
+}
+.connect-card h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+.connect-card p {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin-bottom: 22px;
+}
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--ink-soft);
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.field input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg);
+  outline: none;
+  transition: border-color .2s;
+}
+.field input:focus { border-color: var(--blue); background: #fff; }
+.field input::placeholder { color: var(--ink-faint); }
+
+.btn-connect {
+  width: 100%;
+  padding: 11px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  border-radius: 3px;
+  margin-top: 6px;
+}
+.btn-connect:hover:not(:disabled) { background: var(--blue-dim); }
+.btn-connect:disabled { opacity: .45; cursor: not-allowed; }
+
+.connect-note {
+  margin-top: 18px;
+  font-size: 10px;
+  color: var(--ink-faint);
+  line-height: 1.65;
+  text-align: center;
+}
+.connect-note strong { color: var(--ink-soft); }
+
+/* ══════════════════════════════════════════════
+   MAIN APP
+══════════════════════════════════════════════ */
+#app-screen {
+  display: none;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sw);
+  position: fixed;
+  top: 3px; left: 0; bottom: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 22px 20px 20px;
+  overflow-y: auto;
+  z-index: 90;
+}
+
+.logo { font-family: var(--serif); font-size: 19px; font-weight: 400; margin-bottom: 2px; }
+.logo-sub { font-size: 8px; text-transform: uppercase; letter-spacing: 2.5px; color: var(--ink-faint); margin-bottom: 22px; }
+
+.site-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0faf2;
+  border: 1px solid #b0ddb8;
+  border-radius: 3px;
+  padding: 7px 10px;
+  margin-bottom: 20px;
+}
+.site-pill-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; flex-shrink: 0; }
+.site-pill-text { flex: 1; min-width: 0; }
+.site-pill-name { font-size: 11px; font-weight: 600; color: var(--green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.site-pill-url  { font-size: 9px; color: #5a9a6a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-disconnect {
+  font-size: 9px;
+  color: var(--ink-faint);
+  text-decoration: underline;
+  cursor: pointer;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.btn-disconnect:hover { color: var(--red); }
+
+.sec-label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--ink-faint);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.sb-field { margin-bottom: 12px; }
+.sb-field label {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--ink-soft);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.sb-field input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--bg);
+  outline: none;
+  transition: border-color .2s;
+}
+.sb-field input:focus { border-color: var(--blue); background: #fff; }
+.sb-field input::placeholder { color: var(--ink-faint); }
+
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* Instructions */
+#instructions {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: #fff;
+  resize: vertical;
+  min-height: 130px;
+  max-height: 260px;
+  margin-bottom: 4px;
+  outline: none;
+  transition: border-color .2s;
+}
+#instructions:focus { border-color: var(--blue); }
+#instructions::placeholder { color: var(--ink-faint); }
+.instr-hint { font-size: 9px; color: var(--ink-faint); line-height: 1.55; margin-bottom: 14px; }
+
+/* Sidebar buttons */
+.btn-primary {
+  width: 100%;
+  padding: 9px 14px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  border-radius: 3px;
+  margin-bottom: 6px;
+}
+.btn-primary:hover:not(:disabled) { background: var(--blue-dim); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Status banners */
+.status {
+  display: none;
+  padding: 8px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.status.show { display: block; }
+.status.error   { color: var(--red);   background: #fdf0f0; border: 1px solid #f0c0c0; }
+.status.success { color: var(--green); background: #f0faf2; border: 1px solid #b0ddb8; }
+.status.loading { color: var(--blue);  background: #f0f5fc; border: 1px solid #c0d4ee; }
+
+/* ── Main panel ── */
+.main {
+  margin-left: var(--sw);
+  margin-top: 3px;
+  height: calc(100vh - 3px);
+  overflow-y: auto;
+}
+.main-inner { padding: 28px 36px 60px; max-width: 860px; }
+
+/* Empty state */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 500px; text-align: center;
+}
+.empty-icon { font-size: 38px; margin-bottom: 16px; opacity: .35; }
+.empty-state h2 { font-family: var(--serif); font-size: 22px; font-weight: 400; margin-bottom: 8px; }
+.empty-state p  { font-size: 13px; color: var(--ink-soft); line-height: 1.6; max-width: 360px; }
+
+/* Article area */
+#article-area { display: none; }
+
+.page-heading { font-family: var(--serif); font-size: 24px; font-weight: 400; margin-bottom: 3px; }
+.page-meta {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-faint);
+  margin-bottom: 20px; display: flex; align-items: center; gap: 14px;
+}
+.meta-badge {
+  padding: 2px 7px; border: 1px solid var(--border); border-radius: 20px;
+  font-size: 8px; letter-spacing: 1px; color: var(--ink-soft);
+}
+
+/* Side-by-side panels */
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; }
+.panel-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-title { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; color: var(--ink-soft); }
+.panel-badge { font-size: 8px; padding: 2px 6px; border-radius: 2px; background: var(--bg); border: 1px solid var(--border); color: var(--ink-faint); }
+.panel-badge.ready { background: #f0faf2; border-color: #b0ddb8; color: var(--green); }
+
+.panel-body {
+  padding: 14px; font-size: 12.5px; line-height: 1.7;
+  color: var(--ink-mid); max-height: 420px; overflow-y: auto;
+}
+.panel-body h2 { font-family: var(--serif); font-size: 16px; font-weight: 400; color: var(--ink); margin: 12px 0 5px; }
+.panel-body h2:first-child { margin-top: 0; }
+.panel-body h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--ink); margin: 9px 0 3px; }
+.panel-body p  { margin-bottom: 7px; }
+.panel-body ul, .panel-body ol { padding-left: 16px; margin-bottom: 7px; }
+.panel-body li { margin-bottom: 3px; }
+.panel-body blockquote { border-left: 3px solid var(--border); padding-left: 11px; color: var(--ink-soft); font-style: italic; font-family: var(--serif); }
+.panel-body strong { color: var(--ink); }
+.placeholder { color: var(--ink-faint); font-size: 12px; font-style: italic; text-align: center; padding: 40px 0; }
+
+/* Action bar */
+.action-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn-action { padding: 10px 20px; font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; border-radius: 3px; }
+.btn-rewrite { background: var(--blue);  color: #fff; }
+.btn-rewrite:hover:not(:disabled) { background: var(--blue-dim); }
+.btn-rewrite:disabled { opacity: .45; cursor: not-allowed; }
+.btn-save    { background: var(--green); color: #fff; }
+.btn-save:hover:not(:disabled) { background: #2d7040; }
+.btn-save:disabled { opacity: .45; cursor: not-allowed; }
+.btn-discard {
+  color: var(--ink-soft); font-size: 10px; font-weight: 600; letter-spacing: .8px;
+  text-transform: uppercase; padding: 10px 14px; border: 1px solid var(--border); border-radius: 3px;
+}
+.btn-discard:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+.btn-discard:disabled { opacity: .45; cursor: not-allowed; }
+
+.action-status {
+  display: none; font-size: 11px; padding: 8px 12px; border-radius: 3px; flex: 1;
+}
+.action-status.show { display: block; }
+.action-status.error   { color: var(--red);   background: #fdf0f0; border: 1px solid #f0c0c0; }
+.action-status.success { color: var(--green); background: #f0faf2; border: 1px solid #b0ddb8; }
+.action-status.loading { color: var(--blue);  background: #f0f5fc; border: 1px solid #c0d4ee; }
+
+.edit-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--blue); text-decoration: none; margin-top: 9px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+}
+.edit-link:hover { text-decoration: underline; }
+
+/* Connect screen status */
+#connect-status {
+  margin-top: 14px;
+  padding: 9px 11px;
+  border-radius: 3px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  display: none;
+}
+#connect-status.show { display: block; }
+#connect-status.error   { color: var(--red);   background: #fdf0f0; border: 1px solid #f0c0c0; }
+#connect-status.loading { color: var(--blue);  background: #f0f5fc; border: 1px solid #c0d4ee; }
+
+/* Spinner */
+.spin { display:inline-block; width:10px; height:10px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .6s linear infinite; margin-right:5px; vertical-align:middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ══ CONNECT SCREEN ════════════════════════════════════════════════════════ -->
+<div id="connect-screen">
+  <div class="connect-card">
+    <div class="connect-logo">WordCraft</div>
+    <div class="connect-sub">Article Rewriter</div>
+
+    <h2>Connect your WordPress site</h2>
+    <p>Enter your site URL below. You only need to do this once — the connection stays active for 48 hours. <strong>https://</strong> is added automatically.</p>
+
+    <div class="field">
+      <label>Site URL</label>
+      <input type="url" id="connect-url" placeholder="intellectualprestige.com" />
+    </div>
+
+    <button class="btn-connect" id="btn-connect" onclick="connect()">Connect Site</button>
+
+    <div id="connect-status"></div>
+
+    <div class="connect-note">
+      Requires the <strong>WordCraft Rewriter Connector</strong> plugin<br>
+      to be installed &amp; activated on your WordPress site.
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══════════════════════════════════════════════════════════════ -->
+<div id="app-screen">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+
+    <div class="logo">WordCraft</div>
+    <div class="logo-sub">Article Rewriter</div>
+
+    <!-- Connected site pill -->
+    <div class="site-pill">
+      <div class="site-pill-dot"></div>
+      <div class="site-pill-text">
+        <div class="site-pill-name" id="pill-name">—</div>
+        <div class="site-pill-url"  id="pill-url">—</div>
+      </div>
+      <button class="btn-disconnect" onclick="disconnect()">disconnect</button>
+    </div>
+
+    <div class="sec-label">Post URL</div>
+    <div class="sb-field">
+      <input type="url" id="wp-admin-url"
+        placeholder="…/wp-admin/post.php?post=3937&action=edit" />
+    </div>
+
+    <div id="fetch-status" class="status"></div>
+
+    <button class="btn-primary" id="btn-fetch" onclick="fetchArticle()">
+      Fetch Article
+    </button>
+
+    <div class="divider"></div>
+
+    <div class="sec-label">Rewrite Instructions</div>
+    <textarea id="instructions"
+      placeholder="e.g. Make it 30% longer. Add a section on tax implications. Use a more authoritative tone. Target the keyword 'best index funds 2025'. Add numbered steps at the end."
+    ></textarea>
+    <div class="instr-hint">Tell Claude exactly what to change — tone, length, SEO angle, structure, anything.</div>
+
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="main-inner">
+
+      <!-- Empty state -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">✍️</div>
+        <h2>Paste a post URL to begin</h2>
+        <p>Enter a WordPress admin post URL in the sidebar and click <strong>Fetch Article</strong>.</p>
+      </div>
+
+      <!-- Article area -->
+      <div id="article-area">
+
+        <div class="page-heading" id="article-title">Untitled</div>
+        <div class="page-meta">
+          <span id="post-id-badge" class="meta-badge">Post #—</span>
+          <span id="post-status-badge" class="meta-badge">—</span>
+          <a id="post-live-link" class="meta-badge" href="#" target="_blank" style="display:none; text-decoration:none;">↗ View post</a>
+        </div>
+
+        <div class="panels">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Original</span>
+              <span class="panel-badge">From WordPress</span>
+            </div>
+            <div class="panel-body" id="original-content">
+              <div class="placeholder">Loading…</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Rewritten</span>
+              <span class="panel-badge" id="new-badge">Awaiting rewrite</span>
+            </div>
+            <div class="panel-body" id="rewritten-content">
+              <div class="placeholder">Your rewritten article will appear here.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn-action btn-rewrite" id="btn-rewrite" onclick="rewriteArticle()" disabled>
+            Rewrite with Claude
+          </button>
+          <button class="btn-action btn-save" id="btn-save" onclick="saveArticle()" disabled>
+            Save to WordPress
+          </button>
+          <button class="btn-discard" id="btn-discard" onclick="discardRewrite()" disabled>
+            Discard
+          </button>
+          <div class="action-status" id="action-status"></div>
+        </div>
+
+        <div id="save-link-wrap" style="display:none;">
+          <a id="save-edit-link" href="#" target="_blank" class="edit-link">→ Open in WordPress editor</a>
+        </div>
+
+      </div><!-- /#article-area -->
+    </div>
+  </main>
+
+</div><!-- /#app-screen -->
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = { postId: null, plainText: "", rewrittenHtml: "" };
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+
+function setConnectStatus(msg, type) {
+  const e = el("connect-status");
+  e.innerHTML = (type === "loading" ? '<span class="spin"></span>' : "") + msg;
+  e.className = msg ? "show " + type : "";
+}
+
+function setFetchStatus(msg, type) {
+  const e = el("fetch-status");
+  e.textContent = msg;
+  e.className = msg ? "status show " + type : "status";
+}
+
+function setActionStatus(msg, type) {
+  const e = el("action-status");
+  e.innerHTML = (type === "loading" ? '<span class="spin"></span>' : "") + msg;
+  e.className = msg ? "action-status show " + type : "action-status";
+}
+
+function setBtn(id, disabled) { el(id).disabled = disabled; }
+
+// ── Boot: check existing session ──────────────────────────────────────────────
+async function boot() {
+  try {
+    const r    = await fetch("/api/session", { credentials: "include" });
+    const data = await r.json();
+    if (data.connected) {
+      showApp(data.siteUrl, data.siteUrl);
+    } else {
+      el("connect-screen").style.display = "flex";
+    }
+  } catch (_) {
+    el("connect-screen").style.display = "flex";
+  }
+}
+
+// ── Connect ───────────────────────────────────────────────────────────────────
+async function connect() {
+  let siteUrl = el("connect-url").value.trim();
+  if (!siteUrl) { setConnectStatus("Please enter your site URL.", "error"); return; }
+  // Normalise: add https if missing, strip trailing slash
+  if (!siteUrl.startsWith("http://") && !siteUrl.startsWith("https://")) siteUrl = "https://" + siteUrl;
+  siteUrl = siteUrl.replace(/^http:\/\//i, "https://");
+  siteUrl = siteUrl.replace(/\/+$/, "");
+  el("connect-url").value = siteUrl; // show the normalised version
+
+  setConnectStatus("Connecting to WordPress…", "loading");
+  setBtn("btn-connect", true);
+
+  try {
+    const r    = await fetch("/api/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ siteUrl }),
+    });
+    const data = await r.json();
+
+    if (!r.ok) {
+      setConnectStatus(data.error || "Connection failed.", "error");
+      setBtn("btn-connect", false);
+      return;
+    }
+
+    showApp(data.siteName || data.siteUrl, data.siteUrl);
+
+  } catch (err) {
+    setConnectStatus("Network error: " + err.message, "error");
+    setBtn("btn-connect", false);
+  }
+}
+
+// ── Show main app ─────────────────────────────────────────────────────────────
+function showApp(siteName, siteUrl) {
+  el("connect-screen").style.display = "none";
+  el("app-screen").style.display    = "block";
+
+  // Populate pill
+  const host = (() => { try { return new URL(siteUrl).host; } catch(_) { return siteUrl; } })();
+  el("pill-name").textContent = siteName || host;
+  el("pill-url").textContent  = host;
+
+  // Reset connect form for next time
+  el("btn-connect").disabled = false;
+  setConnectStatus("", "");
+}
+
+// ── Disconnect ────────────────────────────────────────────────────────────────
+async function disconnect() {
+  await fetch("/api/disconnect", { method: "POST", credentials: "include" });
+  el("app-screen").style.display    = "none";
+  el("connect-screen").style.display = "flex";
+  el("connect-url").value = "";
+  // Reset article state
+  state.postId = null; state.plainText = ""; state.rewrittenHtml = "";
+  el("empty-state").style.display  = "flex";
+  el("article-area").style.display = "none";
+}
+
+// ── Fetch article ─────────────────────────────────────────────────────────────
+async function fetchArticle() {
+  const wpAdminUrl = el("wp-admin-url").value.trim();
+  if (!wpAdminUrl) { setFetchStatus("Paste a post URL first.", "error"); return; }
+
+  setFetchStatus("Fetching…", "loading");
+  setBtn("btn-fetch", true);
+
+  try {
+    const r    = await fetch("/api/fetch-article", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ wpAdminUrl }),
+    });
+    const data = await r.json();
+
+    if (data.needsConnect) { disconnect(); return; }
+
+    if (!r.ok) {
+      setFetchStatus(data.error || "Failed to fetch.", "error");
+      setBtn("btn-fetch", false);
+      return;
+    }
+
+    state.postId       = data.postId;
+    state.plainText    = data.plainText;
+    state.rewrittenHtml = "";
+
+    el("article-title").textContent      = data.title;
+    el("post-id-badge").textContent      = `Post #${data.postId}`;
+    el("post-status-badge").textContent  = data.status;
+    el("original-content").innerHTML     = data.displayHtml || "<em>No content found.</em>";
+
+    if (data.link) {
+      el("post-live-link").href         = data.link;
+      el("post-live-link").style.display = "inline";
+    }
+
+    el("rewritten-content").innerHTML   = '<div class="placeholder">Add your instructions in the sidebar, then click Rewrite with Claude.</div>';
+    el("new-badge").textContent         = "Awaiting rewrite";
+    el("new-badge").className           = "panel-badge";
+    el("save-link-wrap").style.display  = "none";
+
+    el("empty-state").style.display  = "none";
+    el("article-area").style.display = "block";
+
+    setFetchStatus("Article fetched ✓", "success");
+    setBtn("btn-fetch", false);
+    setBtn("btn-rewrite", false);
+    setBtn("btn-save", true);
+    setBtn("btn-discard", true);
+    setActionStatus("", "");
+
+  } catch (err) {
+    setFetchStatus("Network error: " + err.message, "error");
+    setBtn("btn-fetch", false);
+  }
+}
+
+// ── Rewrite ───────────────────────────────────────────────────────────────────
+async function rewriteArticle() {
+  const instructions = el("instructions").value.trim();
+  if (!instructions) { setActionStatus("Add rewrite instructions in the sidebar first.", "error"); return; }
+
+  setActionStatus("Claude is rewriting — this takes 20–40 seconds…", "loading");
+  setBtn("btn-rewrite", true);
+  setBtn("btn-save", true);
+  setBtn("btn-discard", true);
+
+  try {
+    const r    = await fetch("/api/rewrite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        title:        el("article-title").textContent,
+        plainText:    state.plainText,
+        instructions: instructions,
+      }),
+    });
+    const data = await r.json();
+
+    if (data.needsConnect) { disconnect(); return; }
+
+    if (!r.ok) {
+      setActionStatus(data.error || "Rewrite failed.", "error");
+      setBtn("btn-rewrite", false);
+      return;
+    }
+
+    state.rewrittenHtml = data.content;
+    el("rewritten-content").innerHTML = data.content;
+    el("new-badge").textContent       = "Ready to save";
+    el("new-badge").className         = "panel-badge ready";
+
+    setActionStatus("Rewrite complete — review it, then save.", "success");
+    setBtn("btn-rewrite", false);
+    setBtn("btn-save", false);
+    setBtn("btn-discard", false);
+
+  } catch (err) {
+    setActionStatus("Network error: " + err.message, "error");
+    setBtn("btn-rewrite", false);
+  }
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+async function saveArticle() {
+  if (!state.rewrittenHtml) { setActionStatus("Nothing to save — rewrite first.", "error"); return; }
+
+  setActionStatus("Saving to WordPress…", "loading");
+  setBtn("btn-save", true); setBtn("btn-rewrite", true); setBtn("btn-discard", true);
+
+  try {
+    const r    = await fetch("/api/update-article", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        postId:     state.postId,
+        title:      el("article-title").textContent,
+        newContent: state.rewrittenHtml,
+      }),
+    });
+    const data = await r.json();
+
+    if (data.needsConnect) { disconnect(); return; }
+
+    if (!r.ok) {
+      setActionStatus(data.error || "Save failed.", "error");
+      setBtn("btn-save", false); setBtn("btn-rewrite", false); setBtn("btn-discard", false);
+      return;
+    }
+
+    setActionStatus("Saved to WordPress ✓", "success");
+    setBtn("btn-rewrite", false); setBtn("btn-save", false); setBtn("btn-discard", false);
+
+    if (data.editUrl) {
+      el("save-edit-link").href          = data.editUrl;
+      el("save-link-wrap").style.display = "block";
+    }
+
+  } catch (err) {
+    setActionStatus("Network error: " + err.message, "error");
+    setBtn("btn-save", false); setBtn("btn-rewrite", false); setBtn("btn-discard", false);
+  }
+}
+
+// ── Discard ───────────────────────────────────────────────────────────────────
+function discardRewrite() {
+  state.rewrittenHtml = "";
+  el("rewritten-content").innerHTML = '<div class="placeholder">Discarded. Update instructions and rewrite again.</div>';
+  el("new-badge").textContent  = "Awaiting rewrite";
+  el("new-badge").className    = "panel-badge";
+  el("save-link-wrap").style.display = "none";
+  setActionStatus("", "");
+  setBtn("btn-save", true); setBtn("btn-discard", true); setBtn("btn-rewrite", false);
+}
+
+// ── Enter key shortcuts ───────────────────────────────────────────────────────
+el("connect-url").addEventListener("keydown",  e => { if (e.key === "Enter") connect(); });
+el("wp-admin-url").addEventListener("keydown", e => { if (e.key === "Enter") fetchArticle(); });
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
